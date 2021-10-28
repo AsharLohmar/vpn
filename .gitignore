@@ -1,0 +1,6 @@
+.settings
+.vagrant
+conf/*
+!conf/proxy
+conf/proxy/rules.d/*
+!conf/proxy/rules.d/.gitkeep
