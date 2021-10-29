@@ -15,17 +15,14 @@ else
 fi
 VPN_BASE="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-if [ -f "${VPN_BASE}/.settings" ]; then
-	# shellcheck source=/dev/null
-	. "${VPN_BASE}/.settings"
-fi
+[ -f "${VPN_BASE}/.settings" ] && . "${VPN_BASE}/.settings"
 
 if [ "${op}" != "ls" ]; then
     VPN_HOME="${VPN_BASE}/conf/${name}"
-    VPN_MOUNT="${VPN_MOUNT:-VPN_HOME}"
-	PROXY_PORT="${PROXY_PORT:-8443}"
-	PROXYPAC_PORT="${PROXYPAC_PORT:-8088}"
-	PROXY_ENDPOINT="${PROXY_ENDPOINT:-127.0.0.1}"
+    VPN_MOUNT="${VPN_MOUNT:-$VPN_HOME}"
+    PROXY_PORT="${PROXY_PORT:-8443}"
+    PROXYPAC_PORT="${PROXYPAC_PORT:-8088}"
+    PROXY_ENDPOINT="${PROXY_ENDPOINT:-127.0.0.1}"
 
     if [ ! -d "${VPN_HOME}" ]; then 
         echo "Unknown VPN ${name}"
