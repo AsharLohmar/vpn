@@ -1,12 +1,13 @@
 #!/bin/bash
 set -e
 
+name="${1:?vpn name}"
+shift
+
 VPN_BASE="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 # shellcheck source=/dev/null
 [ -f "${VPN_BASE}/.settings" ] && . "${VPN_BASE}/.settings"
 
-name="${1:?vpn name}"
-shift
 
 # global commands
 case "${name}" in
@@ -28,7 +29,6 @@ if [ $# -ge 1 ]; then
 else
     op="start"
 fi
-
 
 VPN_HOME="${VPN_BASE}/conf/${name}"
 VPN_MOUNT="${VPN_MOUNT:-$VPN_HOME}"
