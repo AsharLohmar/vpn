@@ -1,35 +1,48 @@
 #!/bin/bash
 set -e
 
+VPN_BASE="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+# shellcheck source=/dev/null
+[ -f "${VPN_BASE}/.settings" ] && . "${VPN_BASE}/.settings"
+
 name="${1:?vpn name}"
 shift
+
+# global commands
+case "${name}" in
+    ls)
+        docker container ls -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+        exit
+        ;;
+    upgrade)
+        docker images --format "{{.Repository}}" -f "reference=*/*latest" | xargs -n1 docker pull
+        dangling="$(docker images -f "dangling=true" -q)"
+        [ -n "${dangling}" ] && docker rmi "${dangling}"
+        exit
+        ;;
+esac
+
 if [ $# -ge 1 ]; then
     op="${1}"
     shift
 else
-    if [ "${name}" == "ls" ]; then
-        op="${name}"
-    else
-        op="start"
-    fi
+    op="start"
 fi
-VPN_BASE="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-[ -f "${VPN_BASE}/.settings" ] && . "${VPN_BASE}/.settings"
 
-if [ "${op}" != "ls" ]; then
-    VPN_HOME="${VPN_BASE}/conf/${name}"
-    VPN_MOUNT="${VPN_MOUNT:-$VPN_HOME}"
-    PROXY_PORT="${PROXY_PORT:-8443}"
-    PROXYPAC_PORT="${PROXYPAC_PORT:-8088}"
-    PROXY_ENDPOINT="${PROXY_ENDPOINT:-127.0.0.1}"
+VPN_HOME="${VPN_BASE}/conf/${name}"
+VPN_MOUNT="${VPN_MOUNT:-$VPN_HOME}"
 
-    if [ ! -d "${VPN_HOME}" ]; then 
-        echo "Unknown VPN ${name}"
-        exit 1
-    fi
-    running="$(docker container ls -f "name=${name}" -q | wc -l)"
+PROXY_PORT="${PROXY_PORT:-8443}"
+PROXYPAC_PORT="${PROXYPAC_PORT:-8088}"
+PROXY_BIND="${PROXY_BIND:-127.0.0.1}"
+PROXY_ENDPOINT="${PROXY_ENDPOINT:-${PROXY_BIND}:${PROXY_PORT}}"
+
+if [ "${name}" != "all" ] && [ ! -d "${VPN_HOME}" ]; then 
+    echo "Unknown VPN ${name}"
+    exit 1
 fi
+running="$(docker container ls -f "name=${name}" -q | wc -l)"
 
 case "${op}" in 
     restart)
@@ -47,7 +60,7 @@ case "${op}" in
         # shellcheck source=/dev/null
         [ -f "${VPN_HOME}/.container_args" ] && . "${VPN_HOME}/.container_args" 
 
-        if [ "${ensure_proxy}" == "1" ] && [ "$(docker container ls -f 'name=proxy' -q | wc -l)" == 0 ]; then
+        if [ "${ensure_proxy}" = "1" ] && [ "$(docker container ls -f 'name=proxy' -q | wc -l)" = "0" ]; then
             echo "proxy not running run ${0} proxy"
         fi
 
@@ -56,29 +69,31 @@ case "${op}" in
         docker "${d_args[@]}"
         ;;
     stop)
-        if [ "${running}" == "0" ]; then
+        if [ "${name}" != "all" ] && [ "${running}" = "0" ]; then
             echo "VPN ${name} is not running"
             exit 2
         fi
-        docker stop -t1 "${name}"
+        if [ "${name}" = "all" ]; then
+            docker container ls -a --format "table {{.Names}}\t{{.Image}}" | grep asharlohmar/glider | awk '{print $1}' | xargs docker stop -t1
+        else
+            docker stop -t1 "${name}"
+        fi
         ;;
     log)
-        if [ "${running}" == "0" ]; then
+        if [ "${running}" = "0" ]; then
             echo "VPN ${name} is not running"
             exit 2
         fi
         docker logs -f --since 10m "${name}"
         ;;
     shell)
-        if [ "${running}" == "0" ]; then
+        if [ "${running}" = "0" ]; then
             echo "VPN ${name} is not running"
             exit 2
         fi
         docker exec -it "${name}" /bin/sh -l
         ;;
-    ls)
-        docker container ls -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
-        ;; 
+
     *)
         echo "Usage: ${0} {start|stop|log|shell|ls}"
         exit 1
