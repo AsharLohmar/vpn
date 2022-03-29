@@ -46,7 +46,7 @@ running="$(docker container ls -f "name=${name}" -q | wc -l)"
 
 case "${op}" in 
     restart)
-        $0 "${name}" stop || echo -e ''
+        $0 "${name}" stop || echo ''
         $0 "${name}" start
         ;;
     start)
@@ -64,7 +64,7 @@ case "${op}" in
             echo "proxy not running run ${0} proxy"
         fi
 
-        docker network inspect vpn &>/dev/null || docker network create --driver bridge --subnet 192.168.253.0/24 --gateway 192.168.253.1  vpn
+        docker network inspect vpn >/dev/null 2>&1 || docker network create --driver bridge --subnet 192.168.253.0/24 --gateway 192.168.253.1  vpn
 
         docker "${d_args[@]}"
         ;;
