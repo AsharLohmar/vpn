@@ -15,6 +15,7 @@ case "${name}" in
         docker container ls -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
         exit
         ;;
+		
     upgrade)
         docker images --format "{{.Repository}}" -f "reference=*/*latest" | xargs -n1 docker pull
         dangling="$(docker images -f "dangling=true" -q)"
@@ -28,6 +29,39 @@ if [ $# -ge 1 ]; then
     shift
 else
     op="start"
+fi
+
+if [ "${name}" = "vm" ]; then
+	for i in 1 2;
+	do
+		cmd=""
+		case "${op}" in
+			restart)
+				cmd="reload"
+				;;
+			start)
+				cmd="up"
+				;;
+			stop)
+				cmd="halt"
+				;;
+			shell)
+				cmd="ssh"
+				;;
+			ls|status)
+				cmd="status"
+				;;
+			*)
+				echo "Usage: ${0} {start|stop|shell|ls}"
+				exit 1
+				;;
+		esac
+		if [ ! -f ~/.vpn.box ]; then
+			vagrant global-status | grep "vpn " | awk '{print $1}' > ~/.vpn.box
+		fi
+		vagrant "${cmd}" "$(<~/.vpn.box)" && break || rm ~/.vpn.box
+	done
+	exit
 fi
 
 VPN_HOME="${VPN_BASE}/conf/${name}"
