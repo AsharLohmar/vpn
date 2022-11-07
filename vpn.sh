@@ -32,7 +32,7 @@ else
 fi
 
 if [ "${name}" = "vm" ]; then
-	for i in 1 2;
+	for i in 1 2 3;
 	do
 		cmd=""
 		case "${op}" in
@@ -48,7 +48,7 @@ if [ "${name}" = "vm" ]; then
 			shell)
 				cmd="ssh"
 				;;
-			ls|status)
+			status)
 				cmd="status"
 				;;
 			*)
@@ -57,7 +57,17 @@ if [ "${name}" = "vm" ]; then
 				;;
 		esac
 		if [ ! -f ~/.vpn.box ]; then
-			vagrant global-status | grep "vpn " | awk '{print $1}' > ~/.vpn.box
+			box_id="$(vagrant global-status | grep "vpn " | awk '{print $1}')"
+			if [ -n "${box_id}" ]; then
+				echo "${box_id}" > ~/.vpn.box
+			else
+				if [ "${op}" = "start" ]; then
+					(cd "${VPN_BASE}" || exit; vagrant up) && exit 0
+				else
+					echo "vpn box not found, you should try to start it first"
+					exit 1
+				fi
+			fi
 		fi
 		vagrant "${cmd}" "$(<~/.vpn.box)" && break || rm ~/.vpn.box
 	done
