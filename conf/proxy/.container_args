@@ -1,4 +1,4 @@
 ensure_proxy=0
 d_args+=( -p "${PROXY_BIND}:${PROXY_PORT}:8443" -p "${PROXY_BIND}:${PROXYPAC_PORT}:8088" --env "PROXY_ENDPOINT=${PROXY_ENDPOINT}" )
-d_args+=( -d asharlohmar/glider-proxy )
+d_args+=( -d "asharlohmar/glider-proxy:latest" )
 
