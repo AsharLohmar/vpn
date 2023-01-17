@@ -137,6 +137,9 @@ case "${op}" in
         fi
         docker exec -it "${name}" /bin/sh -l
         ;;
+    exec)
+        docker exec -it "${name}" "${@}"
+        ;;
 
     *)
         echo "Usage: ${0} {start|stop|log|shell|ls}"

@@ -9,7 +9,7 @@ _vpn() {
             return 0
             ;;
             *)
-				options="start stop restart shell"
+				options="start stop restart shell exec"
 				if [ "${COMP_WORDS[1]}" == "vm" ]; then
 					options="${options} status"
 				else
