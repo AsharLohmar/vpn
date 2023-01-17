@@ -1,6 +1,23 @@
 #!/bin/bash
 set -e
 
+params="$(getopt -o ":u" -- "$@")"
+eval set -- "$params"
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -u)
+        update="1"
+        shift
+        ;;
+      --) 
+        shift
+        break
+        ;;
+      *)
+        ;;
+   esac
+done
+
 name="${1:?vpn name}"
 shift
 
@@ -102,8 +119,9 @@ case "${op}" in
         ensure_proxy=1
         d_args=( run --rm -it "--cap-add=NET_ADMIN" -v "${VPN_MOUNT}:/conf" --name "${name}" --network vpn "$@" )
         # shellcheck source=/dev/null
+		[ "${update}" = "1" ] && d_args+=( "--pull=always" )
         [ -f "${VPN_HOME}/.container_args" ] && . "${VPN_HOME}/.container_args" 
-
+		
         if [ "${ensure_proxy}" = "1" ] && [ "$(docker container ls -f 'name=proxy' -q | wc -l)" = "0" ]; then
             echo "proxy not running run ${0} proxy"
         fi
