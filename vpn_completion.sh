@@ -26,7 +26,7 @@ _vpn_alias(){
     cc="${COMP_WORDS[1]}"
     mapfile -t COMP_WORDS < <(body="$(alias "$a")"; echo "${body#*=}"| xargs | tr ' ' '\n')
     COMP_WORDS+=( "${cc}")
-    COMP_CWORD="2"
+    COMP_CWORD=$((COMP_CWORD+1))
     _vpn
 }
 
