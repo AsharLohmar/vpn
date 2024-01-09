@@ -117,7 +117,7 @@ case "${op}" in
         fi
 
         ensure_proxy=1
-        d_args=( run --rm -it "--cap-add=NET_ADMIN" -v "${VPN_MOUNT}:/conf" --name "${name}" --network vpn "$@" )
+        d_args=( run --rm -it "--cap-add=NET_ADMIN" -v "${VPN_MOUNT}:/conf" --name "${name}" --hostname "${name}" --network vpn "$@" )
         # shellcheck source=/dev/null
 		[ "${update}" = "1" ] && d_args+=( "--pull=always" )
         [ -f "${VPN_HOME}/.container_args" ] && . "${VPN_HOME}/.container_args" 
