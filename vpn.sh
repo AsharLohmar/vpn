@@ -57,7 +57,9 @@ case "${name}" in
     upgrade)
         docker images --format "{{.Repository}}" -f "reference=*/*latest" | xargs -n1 docker pull
         dangling="$(docker images -f "dangling=true" -q)"
-        [ -n "${dangling}" ] && docker rmi "${dangling}"
+        if [ -n "${dangling}" ]; then
+            echo "${dangling}" | xargs docker rmi
+        fi
         exit
         ;;
 esac
