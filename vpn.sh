@@ -35,19 +35,21 @@ params="$(getopt -o ":hu" -- "$@")"
 eval set -- "$params"
 while [ "$#" -gt 0 ]; do
     case "$1" in
-      -u) update="1"; shift ;;
+      -u) update="1"; shift; restart_args="-u" ;;
       -h) show_help; exit ;;
       --) shift; break ;;
       *) ;;
    esac
 done
+# must stay before the .settings is sourced
+name="${1:?vpn name}"
+shift
 
 VPN_BASE="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 # shellcheck source=/dev/null
 [ -f "${VPN_BASE}/.settings" ] && . "${VPN_BASE}/.settings"
 
-name="${1:?vpn name}"
-shift
+
 
 # global commands
 case "${name}" in
@@ -95,7 +97,7 @@ fi
 
 running="$(docker container ls -f "name=${name}" -q | wc -l)"
 case "${op}" in 
-    restart)  $0 "${name}" stop || true; $0 "${name}" start ;;
+    restart)  $0 "${name}" stop || true; $0 "${name}" start "${restart_args}" ;;
     start)
         if [ "${running}" -ne 0 ]; then
             echo "VPN ${name} already running"
