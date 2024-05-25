@@ -8,7 +8,7 @@ show_help () {
 Global commands
   $(basename "${0}")  [ls|upgrade]
       ls        List active VPN
-      upgrade   Upgrade all docker images and eliminate the dangling ones
+      upgrade   Pulls the :latest for all docker images and eliminates the dangling ones
   $(basename "${0}")  all stop
                 Will stop all active VPN containers
                 
