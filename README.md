@@ -14,7 +14,8 @@ For now I've built containers for:  
 * [vpnc](https://github.com/streambinder/vpnc) - installed from the [alpine repos](https://pkgs.alpinelinux.org/package/edge/community/x86_64/vpnc)  
 * [openvpn](https://openvpn.net/) - also installed from [alpine repos](https://pkgs.alpinelinux.org/package/edge/main/x86_64/openvpn)  
 * openfortivpn - built from sources downloaded from https://github.com/adrienverge/openfortivpn (thanks @adrienverge)
- 
+* [openconnect](https://www.infradead.org/openconnect/) - installed from the [alpine repos](https://pkgs.alpinelinux.org/package/edge/community/x86_64/openconnect)
+
 ## Installation
 First of all you'll need a few things:
 * you need to run docker, so ... that's that. Check [docker](https://www.docker.com/) docs on how to do that. If you can't use docker natively, like in my case (I'm working on Windows with WSL1), you can use my [Vagrantfile](Vagrantfile) to spin up a small VM I've cooked up with alpine, docker and some other stuff needed to run the VPN clients. This would add [vagrant](https://www.vagrantup.com/) to the list.
@@ -28,12 +29,12 @@ Word of advice, in case you use WSL1... vagrant/virtualbox can't mount (add shar
 
 The `conf/proxy` folder contains the needed configuration for the main proxy, we'll check that later.
 
-## Configuration  
+## Configuration 
 ### Configuring a VPN destination
-In order to configure a VPN destination, you have to create a folder inside the `conf/` folder (I'd stick with simple 1-worded names, avoiding non ascii characters 'cause I didn't tested so much).   
+In order to configure a VPN destination, you have to create a folder inside the `conf/` folder (I'd stick with simple 1-worded names, avoiding non ascii characters 'cause I didn't tested so much).  
 Inside you **must** put:
 * a file named `.container_args` - the main intent of this file is to manage the args of the docker command used to start the container (check on DockerHub page of the wanted container for instructions on the content)  
-and 
+and
 * `vpn.conf` file with the configuration specific to the VPN client used.
 
 For example for a VPN destination called "client1" that has/uses FortinetVPN I'd have something like this:
@@ -46,7 +47,7 @@ conf/client1/
 where
 ```
 $ grep -r "" conf/client1
-conf/client1/.container_args:d_args+=( "--device=/dev/ppp"  "asharlohmar/glider-openfortivpn" )
+conf/client1/.container_args:d_args+=( "--device=/dev/ppp"  "asharlohmar/glider-openfortivpn:latest" )
 conf/client1/.container_args:
 
 conf/client1/vpn.conf:host = vpn.client1.com
@@ -63,14 +64,22 @@ You can also add the following files:
 
 In order to start this VPN you can run `vpn.sh client1 [start]`, this will start a container with the name "client1". The various configurations ensure that the container will be "reachable" by that same name and that will help the main proxy know how to reach it.
 
-All the containers are running on the same separated/dedicated network in order to avoid interfering with other containers.
+All the containers are running on the same separated/dedicated network in order to avoid interfering with other containers.s
 ```
 docker network inspect vpn &>/dev/null || docker network create --driver bridge --subnet 192.168.253.0/24 --gateway 192.168.253.1  vpn
-# the subnet was chosen in order to avoid conflicting with the network of one of my clients, there's no other reason or dependency whatsoever. 
+# the subnet was chosen in order to avoid conflicting with the network of one of my clients, there's no other reason or dependency whatsoever.
 ```
 
+
+Mainly the `.container_args` must contain something like `d_args+=( "asharlohmar/glider-openconnect:latest" )` or any other image name (check [here](https://hub.docker.com/repositories/asharlohmar?search=glider) for more).  
+The `d_args` is an array of arguments with which the `docker` command will be launched, so if/when need it add other arguments before the image name. For example, I once had to set the MAC address `d_args+=( "--mac-address=xx:xx:xx:xx:xx:xx"  "asharlohmar/glider-openconnect:latest" )`.  
+The `openfortivpn` seems to always need to acces the host's `ppp` so it will always have to be `d_args+=( "--device=/dev/ppp"  "asharlohmar/glider-openfortivpn:latest" )`.  
+If for some reason you need to change the name of the container (instead of using the folder's name), you can override it by adding this `d_args[7]="new name"` ( 7 is the position of the name ).
+ 
+
+
 ### Configuring the main proxy
-The proxy container stays on top of the VPN containers and acts as single-point-of contact in order to get the traffic to the final intended destination. 
+The proxy container stays on top of the VPN containers and acts as single-point-of contact in order to get the traffic to the final intended destination.
 The proxy (`conf/proxy`) uses the `asharlohmar/glider-proxy` container image, the glider that starts there it will be looking for rule files (`*.rule`) in the folder `/conf/rules.d` which will be the where the contents of the `conf/proxy/rules.d/` folder will be mounted. For a detailed documentation on the configuration you can check the [glider](https://github.com/nadoo/glider)'s documentation, the following is just a TLDR version. the typical `*.rule` file should look something like this:
 ```
 $ cat conf/proxy/rules.d/client1.rule
@@ -101,26 +110,37 @@ If you check the contents of the proxy's [.container_args](conf/proxy/.container
 
 
 ## Usage
-As I was saying, I'm using Windows and WSL1, so I'm using vagrant with the provided [Vagrantfile](Vagrantfile) to spin up my vpn docker machine. The machine has the IP address `192.168.56.200` fixed on a `host-only` interface (so when/if you have docker supported natively just use 127.0.0.1).  
-My `.settings` file looks like this:
+**Set the settings, if necessary.**  
+As I was saying, I'm using Windows and WSL1, so I'm using vagrant with the provided [Vagrantfile](Vagrantfile) to spin up my vpn docker machine. So I must contact `docker` via TCP, also I have to override the `PROXYPAC_PORT` with a path from inside the vagrant box, thus my `.settings` file looks like this:
 ```
 VPN_MOUNT="/vagrant/conf/${name}"
-PROXY_ENDPOINT="192.168.56.200"
-
-export DOCKER_HOST=tcp://192.168.56.200:2375
+export DOCKER_HOST=tcp://127.0.0.1:2375
 ```
-So I'm using the default ports 8443 and 80888,
 
-I've configured http://192.168.56.200:8088/proxy.pac directly in the "Use automatic configuration script" in `Interner Options > Connections > LAN settings`, so my browsers are always using it. Firefox has its own proxy configuration.  
+**Start a vpn**  
+For the usage of `vpn.sh` check the help (`vpn.sh -h`).  
+Always start the main proxy (`vpn.sh proxy` or `vpn.sh proxy start`).
+
+I've configured http://127.0.0.1:8088/proxy.pac directly in the "Use automatic configuration script" in `Interner Options > Connections > LAN settings`, so my browsers are always using it (besides Firefox which has its own internal proxy configuration).  
 This way I can keep using the browser(s) as usual for the "normal browsing", but also when I need to go to one of the destinations accessible only through the VPN (for example `domain1.client1.local` from the example above, or some webapp running on some host) the generated `proxy.pac` file will redirect the traffic to the proxy that will consult the `*.rule` files and will redirect it to the proxy in the vpn container and from there it will make its way to the destination ... all transparently and hassle free.
 
 I also do lots of ssh-ing to hosts accessible through these VPNs so for that I've modified my `~/.ssh/config` adding `ProxyCommand` pointing to the proxy on needed `Host` records, something like:
 ```
 Host 1.2.3.4
-    ProxyCommand nc -F -X 5 -x 192.168.56.200:8443 %h %p
+    ProxyUseFdpass yes
+    ProxyCommand nc -F -X 5 -x 127.0.0.1:8443 %h %p
+    # I'm using netcat-openbsd
 ```
 I've also used the proxy in some other applications, for example I have an Eclipse working environment with a Java project that's using it and this way I can have the local configuration files using the same ip addresses I'm using in the lab or production env in order to reach DBs, third-party webapps/webservices, devices, ... no more tunneling (`ssh -L ...`) and/or simulators just because I "don't have access" to "the real thing".
-
+```
+# eclipse.ini and/or in the "run configuration" 
+-DsocksProxyHost=127.0.0.1
+-Dhttp.proxyHost=127.0.0.1
+-Dhttps.proxyHost=127.0.0.1
+-DsocksProxyPort=8443
+-Dhttp.proxyPort=8443
+-Dhttps.proxyPort=8443
+```
 
 **Extras**
 Sometimes I have to deal with situations where some hosts are not reachable directly from the VPN so I have to use some "jump host"/bastion to reach them. For "ssh-ing" that would not be such a big problem there are various way to configure it to use a/the jump host ... but I also want access to "the other stuff" as uncumbersome as possible.  
@@ -145,16 +165,16 @@ if [ "$(grep -E '^\s*Host' /conf/ssh_config | grep -c -E "\b${dest}\b")" = "0" ]
 else
     if [ ! -f /tmp/tunnel_key ]; then
         # when using vagrant, the permissions are all scrambled and un manageable
-        # so I move and use the key from /tmp 
+        # so I move and use the key from /tmp
         cp /conf/tunnel_key /tmp/tunnel_key
         chmod 400  /tmp/tunnel_ke*
-    fi 
+    fi
     which ssh || apk add openssh-client
     # shellcheck disable=SC2078
     (while [ 1=1 ];do echo "starting tunnel ${dest}"; ssh -F/conf/ssh_config -qN "${dest}"; sleep 1; done)&
 fi
 ```
-in order to start ssh command inside an infinite loop so that it reconnects in case it goes down ( notice the missing `-f` , this keeps the process in the foreground)  
+in order to start ssh command inside an infinite loop so that it reconnects in case it goes down ( notice the missing `-f` , this keeps the process in the foreground) 
 * now I'd have to add a new `*.rule` file. I usually go with something like `conf/proxy/rules.d/client1_jumphost01.rule` so it's easier to identify what's what. The content of the file would be something like this:
 ```
 forward=socks5://client1:2226,socks5://127.0.0.1:2227
@@ -162,13 +182,13 @@ forward=socks5://client1:2226,socks5://127.0.0.1:2227
 ip=11.11.11.11
 domain=intranet.client1.net
 ```
-* and that's pretty much it.  
+* and that's pretty much it.
 Note: the glider (so the proxy container) needs to be restarted every time the `*.rule` files are changed in order to "see" the changes. There's a feature request asking for support for reloading the rules [here](https://github.com/nadoo/glider/issues/75), but it's been there since 2018 so ... .
 
 
-# Final words 
+# Final words
 
 So basically what I've done here was to take these several tools and pieces of code and build this whole ... mechanism  ... that is controlled by this bash script.  
 All the thanks and praises should go to the owners, maintainers and communities of those tools and "sources of inspiration",  if someone notices something/someone I've forgotten to mention please let me know.  
 I don't know pretty much anything about licensing & Co. so ... use it as you please, but it would mean a lot if you give me a shout if you do. I hope I didn't "break" any license, if so just let me know.  
-Feel free to snoop around the code (both the vpn script and container's creation script) and see that nothing nefarious is being done (at least on the stuff I control). 
+Feel free to snoop around the code (both the vpn script and container's creation script) and see that nothing nefarious is being done (at least on the stuff I control).  
