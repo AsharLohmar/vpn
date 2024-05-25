@@ -9,11 +9,11 @@ _vpn() {
             return 0
             ;;
             *)
-				options="start stop restart shell exec"
+				options="start stop restart shell"
 				if [ "${COMP_WORDS[1]}" == "vm" ]; then
 					options="${options} status"
 				else
-					options="${options} log"
+					options="${options} log exec"
 				fi
 				mapfile -t COMPREPLY < <(compgen -W "${options}" "${COMP_WORDS[2]}")
             ;;
