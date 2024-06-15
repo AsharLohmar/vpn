@@ -99,7 +99,7 @@ fi
 
 running="$(docker container ls -f "name=${name}" -q | wc -l)"
 case "${op}" in 
-    restart)  $0 "${name}" stop || true; $0 "${name}" start "${restart_args}" ;;
+    restart)  $0 "${name}" stop || true; $0 "${name}" start ${restart_args} ;;
     start)
         if [ "${running}" -ne 0 ]; then
             echo "VPN ${name} already running"
