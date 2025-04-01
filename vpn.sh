@@ -31,11 +31,13 @@ VPN docker machine commands
 EOF
 }
 
+restart_update=()
+
 params="$(getopt -o ":hu" -- "$@")"
 eval set -- "$params"
 while [ "$#" -gt 0 ]; do
     case "$1" in
-      -u) update="1"; shift; restart_args="-u" ;;
+      -u) update="1"; shift; restart_update+=("-u") ;;
       -h) show_help; exit ;;
       --) shift; break ;;
       *) ;;
@@ -99,7 +101,9 @@ fi
 
 running="$(docker container ls -f "name=${name}" -q | wc -l)"
 case "${op}" in 
-    restart)  $0 "${name}" stop || true; $0 "${name}" start ${restart_args} ;;
+    restart)
+        $0 "${name}" stop || true; $0 "${name}" start "${restart_update[@]}"
+        ;;
     start)
         if [ "${running}" -ne 0 ]; then
             echo "VPN ${name} already running"
@@ -116,6 +120,9 @@ case "${op}" in
         fi
         docker network inspect vpn >/dev/null 2>&1 || docker network create --driver bridge --subnet 192.168.253.0/24 --gateway 192.168.253.1  vpn
         docker "${d_args[@]}"
+        if [[ " ${d_args[*]} " =~ " -d " ]]; then
+            docker attach "${name}"
+        fi
         ;;
     stop)
         if [ "${name}" = "all" ]; then
